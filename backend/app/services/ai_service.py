@@ -20,13 +20,13 @@ class AIService:
         self.use_gemini = False
         self.gemini_model = None
         
-        if settings.openai_api_key and settings.openai_api_key.startswith("AIza"):
+        if settings.openai_api_key:
             try:
                 genai.configure(api_key=settings.openai_api_key)
-                # ✅ FIXED: Use available model
-                self.gemini_model = genai.GenerativeModel("gemini-2.0-flash-exp")
+                # ✅ FIXED: Using a model that exists
+                self.gemini_model = genai.GenerativeModel("gemini-3.5-flash")
                 self.use_gemini = True
-                print("✅ Using Google Gemini AI (gemini-2.0-flash-exp)")
+                print("✅ Using Google Gemini AI (gemini-3.5-flash)")
             except Exception as e:
                 print(f"⚠️ Gemini init error: {e}")
     
@@ -73,7 +73,7 @@ Assistant:"""
             return {
                 "success": True,
                 "content": response.text.strip(),
-                "model": "gemini-2.0-flash-exp",
+                "model": "gemini-3.5-flash",
                 "usage": {}
             }
             
@@ -97,8 +97,8 @@ Assistant:"""
         conversation_history: List[Dict],
         personality: str = "helpful"
     ) -> Dict:
-        # Your existing OpenAI code here (keep as is)
-        pass
+        # Your existing OpenAI code here
+        return {"success": False, "content": "OpenAI not configured"}
     
     async def generate_streaming_response(
         self,
@@ -106,8 +106,8 @@ Assistant:"""
         conversation_history: List[Dict],
         personality: str = "helpful"
     ):
-        # Your existing streaming code here (keep as is)
-        pass
+        # Your existing streaming code here
+        yield {"type": "error", "content": "Streaming not configured"}
     
     def validate_content(self, content: str) -> bool:
         return bool(content and content.strip())

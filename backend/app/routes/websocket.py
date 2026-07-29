@@ -64,6 +64,8 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
     connection_id = await manager.connect(websocket, user_id)
     
+    print(f"✅ WebSocket connected: {user_id}")
+    
     await manager.send_personal_message({
         "type": "connected",
         "data": {"message": "Welcome to AI Chat!"}
@@ -76,6 +78,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 message_data = json.loads(data)
                 message_type = message_data.get("type", "message")
                 
+                print(f"📩 Received message type: {message_type} from {user_id}")
+                
                 if message_type == "message":
                     content = message_data.get("content", "")
                     chat_id = message_data.get("chat_id", "")
@@ -83,6 +87,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     
                     if not content or not chat_id:
                         continue
+                    
+                    print(f"💬 Processing message: '{content}' in chat: {chat_id}")
                     
                     # Save and Broadcast User Message
                     user_message = await message_service.create_message(
@@ -113,9 +119,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                         for m in messages
                     ]
                     
+                    print(f"🤖 Calling AI with message: '{content}'")
                     ai_response = await ai_service.generate_response(
                         message=content, conversation_history=history, personality=personality
                     )
+                    
+                    print(f"🤖 AI Response: {ai_response}")
                     
                     # Stop Typing
                     await manager.send_personal_message({
@@ -124,11 +133,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     }, user_id)
                     
                     if ai_response["success"]:
+                        print(f"✅ AI Success: {ai_response['content']}")
                         ai_msg = await message_service.create_message(
                             chat_id=chat_id, user_id=user_id, content=ai_response["content"],
                             sender_type="ai"
                         )
                         
+                        print(f"📤 Sending AI message: {ai_response['content']}")
                         await manager.send_personal_message({
                             "type": "message",
                             "data": {
@@ -139,13 +150,25 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                                 "timestamp": ai_msg["created_at"]
                             }
                         }, user_id)
+                    else:
+                        print(f"❌ AI Error: {ai_response.get('error', 'Unknown error')}")
+                        # Send error message to user
+                        await manager.send_personal_message({
+                            "type": "error",
+                            "data": {
+                                "message": "Sorry, I encountered an error. Please try again.",
+                                "error": ai_response.get("error", "Unknown error")
+                            }
+                        }, user_id)
                 
                 # ✅ NEW: Handle chat:new
                 elif message_type == "chat:new":
                     title = message_data.get("title", "New Chat")
                     
+                    print(f"📝 Creating new chat: '{title}' for user: {user_id}")
                     chat_session = await message_service.create_chat_session(user_id, title)
                     
+                    print(f"✅ Chat created: {chat_session['id']}")
                     await manager.send_personal_message({
                         "type": "chat:created",
                         "data": {
@@ -164,6 +187,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 
                 # ✅ NEW: Handle chat:list
                 elif message_type == "chat:list":
+                    print(f"📋 Getting chat list for user: {user_id}")
                     chats = await message_service.get_chat_sessions(user_id)
                     await manager.send_personal_message({
                         "type": "chat:list",
@@ -176,6 +200,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     limit = message_data.get("limit", 50)
                     
                     if chat_id:
+                        print(f"📖 Loading {limit} messages for chat: {chat_id}")
                         messages = await message_service.get_messages(chat_id, limit=limit)
                         await manager.send_personal_message({
                             "type": "messages_loaded",
@@ -185,8 +210,19 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                             }
                         }, user_id)
 
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON decode error: {e}")
                 pass
+            except Exception as e:
+                print(f"❌ Unexpected error: {e}")
+                import traceback
+                traceback.print_exc()
     
     except WebSocketDisconnect:
+        print(f"🔌 WebSocket disconnected: {user_id}")
+        manager.disconnect(connection_id)
+    except Exception as e:
+        print(f"❌ WebSocket error: {e}")
+        import traceback
+        traceback.print_exc()
         manager.disconnect(connection_id)

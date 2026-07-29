@@ -111,12 +111,82 @@ class UIManager {
         this.theme = this.theme === 'light' ? 'dark' : 'light';
         localStorage.setItem('theme', this.theme);
         this.applyTheme();
+        
+        // Update the icon
         const icon = document.querySelector('#themeToggle i');
-        if (icon) icon.className = this.theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        if (icon) {
+            icon.className = this.theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+        }
+        
+        // Show toast notification
+        if (window.showToast) {
+            showToast(`Switched to ${this.theme} mode`, 'info');
+        }
     }
 
     applyTheme() {
+        // Apply theme to HTML element
         document.documentElement.setAttribute('data-theme', this.theme);
+        
+        // Apply theme to body
+        document.body.style.background = this.theme === 'dark' ? '#0a0a0f' : '#f5f5fa';
+        document.body.style.color = this.theme === 'dark' ? '#f0f0f5' : '#1a1a2e';
+        
+        // Apply to sidebar
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            sidebar.style.background = this.theme === 'dark' ? '#12121a' : '#ffffff';
+            sidebar.style.borderColor = this.theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+        }
+        
+        // Apply to chat messages area
+        const chatMessages = document.getElementById('chatMessages');
+        if (chatMessages) {
+            chatMessages.style.background = this.theme === 'dark' ? '#0a0a0f' : '#f5f5fa';
+        }
+        
+        // Apply to input area
+        const inputArea = document.querySelector('.chat-input-area');
+        if (inputArea) {
+            inputArea.style.background = this.theme === 'dark' ? '#12121a' : '#ffffff';
+            inputArea.style.borderColor = this.theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+        }
+        
+        // Apply to input container
+        const inputContainer = document.querySelector('.input-container');
+        if (inputContainer) {
+            inputContainer.style.background = this.theme === 'dark' ? '#0a0a0f' : '#f0f0f5';
+            inputContainer.style.borderColor = this.theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.1)';
+        }
+        
+        // Apply to messages
+        document.querySelectorAll('.message-content').forEach(el => {
+            const parent = el.closest('.message');
+            if (parent && parent.classList.contains('user-message')) {
+                el.style.background = '#6c63ff';
+                el.style.color = 'white';
+            } else if (parent && parent.classList.contains('ai-message')) {
+                el.style.background = this.theme === 'dark' ? '#1a1a2e' : '#e8e8f0';
+                el.style.borderColor = this.theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+                el.style.color = this.theme === 'dark' ? '#f0f0f5' : '#1a1a2e';
+            }
+        });
+        
+        // Apply to chat list
+        const chatItems = document.querySelectorAll('.chat-item');
+        chatItems.forEach(item => {
+            item.style.background = this.theme === 'dark' ? 'transparent' : 'transparent';
+            if (item.classList.contains('active')) {
+                item.style.background = this.theme === 'dark' ? 'rgba(108,99,255,0.15)' : 'rgba(108,99,255,0.1)';
+            }
+        });
+        
+        // Apply to modals
+        const modalContents = document.querySelectorAll('.modal-content, .auth-modal-content');
+        modalContents.forEach(el => {
+            el.style.background = this.theme === 'dark' ? '#12121a' : '#ffffff';
+            el.style.borderColor = this.theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+        });
     }
 
     openModal(modalId) {
@@ -171,7 +241,6 @@ class UIManager {
         if (window.chatManager) window.chatManager.currentPersonality = personality;
     }
 
-    // ✅ THESE METHODS ARE NOW INSIDE THE CLASS
     updateUserName(name) {
         const userNameEl = document.getElementById('userName');
         if (userNameEl && name) {

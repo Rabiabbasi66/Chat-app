@@ -12,10 +12,12 @@ class ChatManager {
         this.isTyping = false;
         this.typingTimeout = null;
         this.pendingMessage = null;
+        this.isSending = false;  // ✅ Prevent double sending
         this.setupEventListeners();
     }
 
     setupEventListeners() {
+        // Handle incoming messages from WebSocket
         this.wsManager.on('message', (data) => this.handleIncomingMessage(data));
         this.wsManager.on('typing', (data) => this.handleTypingIndicator(data));
         this.wsManager.on('chat:created', (data) => this.handleChatCreated(data));
@@ -71,17 +73,25 @@ class ChatManager {
     }
 
     sendMessage(content) {
-        if (!this.currentChatId) {
-            showToast('Starting a new chat...', 'info');
-            this.createNewChat('New Chat');
-            this.pendingMessage = content; 
+        // ✅ PREVENT DOUBLE SENDING
+        if (this.isSending) {
+            console.log('⚠️ Already sending a message, ignoring duplicate');
             return false;
         }
 
-        if (!content.trim()) return false;
+        if (!this.currentChatId) {
+            showToast('Starting a new chat...', 'info');
+            this.createNewChat('New Chat');
+            this.pendingMessage = content;
+            return false;
+        }
+
+        if (!content || !content.trim()) return false;
+
+        this.isSending = true;  // ✅ Lock
 
         const sent = this.wsManager.sendMessage(
-            content,
+            content.trim(),
             this.currentChatId,
             this.currentPersonality
         );
@@ -92,30 +102,35 @@ class ChatManager {
                 input.value = '';
                 updateCharCount();
             }
+            // ✅ Unlock after sending
+            setTimeout(() => {
+                this.isSending = false;
+            }, 500);
+        } else {
+            this.isSending = false;  // ✅ Unlock on failure
         }
         return sent;
     }
 
     handleIncomingMessage(data) {
-        console.log('📩 handleIncomingMessage called with:', data);
+        // ✅ Skip if no chat_id or wrong chat
+        if (!data.chat_id || data.chat_id !== this.currentChatId) return;
         
-        // ✅ If there's a chat_id, check if it matches current chat
-        if (data.chat_id && data.chat_id !== this.currentChatId) {
-            console.log('⚠️ Message chat_id does not match current chat, skipping UI update');
-            return;
-        }
-        
-        // ✅ Add message to UI
-        this.addMessageToUI(data);
-        
-        // ✅ Store message in cache
-        const chatId = data.chat_id || this.currentChatId;
-        if (chatId) {
-            if (!this.messages.has(chatId)) {
-                this.messages.set(chatId, []);
+        // ✅ Prevent duplicate messages in UI
+        const messageId = data.message_id || data.id;
+        if (messageId && this.messages.has(data.chat_id)) {
+            const existing = this.messages.get(data.chat_id).find(m => 
+                (m.message_id || m.id) === messageId
+            );
+            if (existing) {
+                console.log('⚠️ Duplicate message detected, skipping:', messageId);
+                return;
             }
-            this.messages.get(chatId).push(data);
         }
+        
+        this.addMessageToUI(data);
+        if (!this.messages.has(data.chat_id)) this.messages.set(data.chat_id, []);
+        this.messages.get(data.chat_id).push(data);
     }
 
     handleTypingIndicator(data) {
@@ -127,7 +142,6 @@ class ChatManager {
     }
 
     handleChatCreated(data) {
-        console.log('📩 Chat created:', data);
         const newChat = { 
             id: data.chat_id || data.id, 
             title: data.title || 'New Chat' 
@@ -135,15 +149,18 @@ class ChatManager {
         this.chats.unshift(newChat);
         this.renderChatList();
         this.switchChat(newChat.id);
-        if (this.pendingMessage) {
+        
+        // ✅ Send pending message only if not already sending
+        if (this.pendingMessage && !this.isSending) {
             const msg = this.pendingMessage;
             this.pendingMessage = null;
             setTimeout(() => this.sendMessage(msg), 100);
+        } else if (this.pendingMessage) {
+            console.log('📝 Pending message stored for later');
         }
     }
 
     handleChatList(data) {
-        console.log('📩 Chat list received:', data);
         this.chats = data.chats || [];
         this.renderChatList();
         if (this.chats.length > 0 && !this.currentChatId) {
@@ -152,17 +169,12 @@ class ChatManager {
     }
 
     handleMessagesLoaded(data) {
-        console.log('📩 Messages loaded:', data);
         if (data.chat_id !== this.currentChatId) return;
-        
         this.messages.set(data.chat_id, data.messages || []);
         const container = document.getElementById('messagesContainer');
         if (container) {
             container.innerHTML = '';
-            (data.messages || []).forEach(msg => {
-                console.log('📝 Rendering message:', msg);
-                this.addMessageToUI(msg, false);
-            });
+            (data.messages || []).forEach(msg => this.addMessageToUI(msg, false));
             this.scrollToBottom();
         }
     }
@@ -172,33 +184,23 @@ class ChatManager {
     }
 
     addMessageToUI(data, animate = true) {
-        console.log('📝 addMessageToUI called with:', data);
-        
         const container = document.getElementById('messagesContainer');
-        if (!container) {
-            console.error('❌ messagesContainer not found!');
+        if (!container || !data) return;
+
+        // ✅ Prevent duplicate rendering by checking if message already exists
+        const messageId = data.message_id || data.id;
+        if (messageId && document.getElementById(`msg-${messageId}`)) {
+            console.log('⚠️ Message already in UI, skipping:', messageId);
             return;
         }
-        if (!data) {
-            console.error('❌ No data provided to addMessageToUI');
-            return;
-        }
 
-        // ✅ Handle different message formats
-        const content = data.content || data.message || '';
-        const senderType = data.sender_type || data.senderType || 'ai';
-        const isUser = senderType === 'user';
-        const chatId = data.chat_id || data.chatId || this.currentChatId;
-        const timestamp = data.timestamp || data.created_at || new Date().toISOString();
-        const messageId = data.message_id || data.id || Date.now().toString();
-
-        console.log(`📝 Adding ${isUser ? 'user' : 'AI'} message: "${content}"`);
-
+        const isUser = data.sender_type === 'user';
         const messageEl = document.createElement('div');
         messageEl.className = `message ${isUser ? 'user-message' : 'ai-message'} ${animate ? 'fade-in' : ''}`;
-        messageEl.id = `msg-${messageId}`;
+        messageEl.id = `msg-${messageId || Date.now()}`;
         
-        const time = new Date(timestamp).toLocaleTimeString();
+        const time = new Date(data.timestamp).toLocaleTimeString();
+        const content = data.content || '';
 
         messageEl.innerHTML = `
             <div class="message-avatar">
@@ -215,7 +217,6 @@ class ChatManager {
         
         container.appendChild(messageEl);
         this.scrollToBottom();
-        console.log(`✅ Message added to UI: "${content}"`);
     }
 
     renderChatList() {

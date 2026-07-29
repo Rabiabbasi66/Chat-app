@@ -17,22 +17,20 @@ class AIService:
         self.use_mistral = False
         self.client = None
         
-        api_key = settings.openai_api_key
-        print(f"🔑 API Key loaded: {api_key[:15] if api_key else 'None'}...")
+        # ✅ DIRECT HARDCODE - NO ENV VARIABLE
+        api_key = "01Nh2chSGRNsIP8tcdca1yMHBSTYUbRF"
+        print(f"🔑 Using hardcoded API key: {api_key[:15]}...")
         
-        if api_key:
-            try:
-                self.client = OpenAI(
-                    api_key=api_key,
-                    base_url="https://api.mistral.ai/v1"
-                )
-                self.use_mistral = True
-                print("✅ Using Mistral AI")
-            except Exception as e:
-                print(f"⚠️ Mistral init error: {e}")
-                print(traceback.format_exc())
-        else:
-            print("❌ No API key found!")
+        try:
+            self.client = OpenAI(
+                api_key=api_key,
+                base_url="https://api.mistral.ai/v1"
+            )
+            self.use_mistral = True
+            print("✅ Using Mistral AI with hardcoded key")
+        except Exception as e:
+            print(f"⚠️ Mistral init error: {e}")
+            print(traceback.format_exc())
     
     async def generate_response(
         self,
@@ -72,7 +70,6 @@ class AIService:
             messages.append({"role": "user", "content": message})
             
             print(f"📤 Sending to Mistral: {message[:50]}...")
-            print(f"📤 Messages: {json.dumps(messages, indent=2)}")
             
             response = self.client.chat.completions.create(
                 model="mistral-small-latest",
@@ -92,17 +89,12 @@ class AIService:
             
         except Exception as e:
             error_msg = str(e)
-            error_type = type(e).__name__
-            print(f"❌ Mistral Error Type: {error_type}")
             print(f"❌ Mistral Error: {error_msg}")
             print(traceback.format_exc())
-            
-            # Return the actual error message
             return {
                 "success": False,
                 "content": f"Error: {error_msg}",
-                "error": error_msg,
-                "error_type": error_type
+                "error": error_msg
             }
 
 ai_service = AIService()

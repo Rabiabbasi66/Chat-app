@@ -13,19 +13,24 @@ class AIService:
             "educational": "You are an educational assistant who explains concepts clearly and encourages learning."
         }
         
-        self.use_deepseek = False
+        self.use_mistral = False
         self.client = None
         
-        if settings.openai_api_key:
+        api_key = settings.openai_api_key
+        print(f"🔑 API Key loaded: {api_key[:10] if api_key else 'None'}...")
+        
+        if api_key:
             try:
                 self.client = OpenAI(
-                    api_key=settings.openai_api_key,
-                    base_url="https://api.deepseek.com"
+                    api_key=api_key,
+                    base_url="https://api.mistral.ai/v1"
                 )
-                self.use_deepseek = True
-                print("✅ Using DeepSeek AI")
+                self.use_mistral = True
+                print("✅ Using Mistral AI")
             except Exception as e:
-                print(f"⚠️ DeepSeek init error: {e}")
+                print(f"⚠️ Mistral init error: {e}")
+        else:
+            print("❌ No API key found!")
     
     async def generate_response(
         self,
@@ -34,14 +39,14 @@ class AIService:
         personality: str = "helpful",
         **kwargs
     ) -> Dict:
-        if self.use_deepseek:
-            return await self._generate_with_deepseek(message, conversation_history, personality)
+        if self.use_mistral:
+            return await self._generate_with_mistral(message, conversation_history, personality)
         return {
             "success": False,
             "content": "AI service not configured. Please add a valid API key."
         }
     
-    async def _generate_with_deepseek(
+    async def _generate_with_mistral(
         self,
         message: str,
         conversation_history: List[Dict],
@@ -54,7 +59,6 @@ class AIService:
                 {"role": "system", "content": system_prompt}
             ]
             
-            # Add conversation history (last 5 messages)
             if conversation_history:
                 for msg in conversation_history[-5:]:
                     role = "user" if msg.get("role") == "user" else "assistant"
@@ -65,25 +69,30 @@ class AIService:
             
             messages.append({"role": "user", "content": message})
             
+            print(f"📤 Sending to Mistral: {message[:50]}...")
+            
             response = self.client.chat.completions.create(
-                model="deepseek-chat",
+                model="mistral-small-latest",
                 messages=messages,
                 temperature=0.7,
                 max_tokens=500
             )
             
+            reply = response.choices[0].message.content
+            print(f"📩 Mistral response: {reply[:50]}...")
+            
             return {
                 "success": True,
-                "content": response.choices[0].message.content,
-                "model": "deepseek-chat"
+                "content": reply,
+                "model": "mistral-small"
             }
             
         except Exception as e:
             error_msg = str(e)
-            print(f"❌ DeepSeek Error: {error_msg}")
+            print(f"❌ Mistral Error: {error_msg}")
             return {
                 "success": False,
-                "content": "I'm having trouble right now. Please try again in a moment.",
+                "content": f"Error: {error_msg}",
                 "error": error_msg
             }
 

@@ -3,10 +3,13 @@
  * Initializes all components and starts the application
  */
 
+// ✅ Make API_BASE_URL global
+const API_BASE_URL = localStorage.getItem('api_url') || 'https://chat-app-aanf.vercel.app';
+window.API_BASE_URL = API_BASE_URL;
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 AI Chat Application Starting...');
-    
-   const API_BASE_URL = localStorage.getItem('api_url') || 'https://chat-app-aanf.vercel.app';
+    console.log(`📡 API URL: ${API_BASE_URL}`);
 
     // Initialize Managers
     window.wsManager = new WebSocketManager(API_BASE_URL);
@@ -40,19 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast("You're offline. Some features may not work.", 'warning');
     });
 
-    // 🔥 OPTIONAL: Disable Service Worker for now (removes 404 error)
-    /*
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-                console.log('✅ ServiceWorker registered:', registration.scope);
-            })
-            .catch(error => {
-                console.log('❌ ServiceWorker registration failed:', error);
-            });
-    }
-    */
-
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -78,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (messageInput) {
         messageInput.addEventListener('input', (e) => {
-            updateCharCount(); // ✅ Now safe
+            updateCharCount();
 
             clearTimeout(draftTimeout);
             draftTimeout = setTimeout(() => {
@@ -94,12 +84,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Check if user is already logged in
+    if (window.isAuthenticated && window.isAuthenticated()) {
+        window.updateAuthUI(true);
+        window.loadUserData();
+    }
+
     console.log('✅ AI Chat Application Ready!');
 });
 
-
 /**
- * ✅ FIXED: Character Counter Function
+ * Character Counter Function
  */
 function updateCharCount() {
     const input = document.getElementById('messageInput');
@@ -109,7 +104,6 @@ function updateCharCount() {
 
     counter.textContent = input.value.length;
 }
-
 
 /**
  * Global Error Handling
@@ -122,7 +116,6 @@ window.addEventListener('error', (event) => {
 window.addEventListener('unhandledrejection', (event) => {
     console.error('❌ Unhandled promise rejection:', event.reason);
 });
-
 
 /**
  * Performance Monitoring
@@ -138,10 +131,29 @@ if (window.performance) {
     });
 }
 
-
 /**
  * Toast Function
  */
 window.showToast = function(message, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${message}`);
+    
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <span class="toast-icon">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        </span>
+        <span class="toast-message">${message}</span>
+    `;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
 };

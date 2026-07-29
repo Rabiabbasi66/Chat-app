@@ -1,100 +1,70 @@
 from typing import Optional, List, Dict
 import json
-import traceback
-from openai import OpenAI
-from ..config import settings
+import random
+from datetime import datetime
 
 class AIService:
     def __init__(self):
         self.personalities = {
-            "helpful": "You are a helpful, friendly assistant who provides clear and accurate information.",
-            "professional": "You are a professional assistant who maintains a formal tone and provides detailed responses.",
-            "casual": "You are a casual, conversational assistant who communicates in a relaxed, friendly manner.",
-            "creative": "You are a creative assistant who thinks outside the box and provides innovative solutions.",
-            "educational": "You are an educational assistant who explains concepts clearly and encourages learning."
+            "helpful": "You are a helpful assistant.",
+            "professional": "You are a professional assistant.",
+            "casual": "You are a casual assistant.",
+            "creative": "You are a creative assistant.",
+            "educational": "You are an educational assistant."
         }
         
-        self.use_mistral = False
-        self.client = None
-        
-        # ✅ DIRECT HARDCODE - NO ENV VARIABLE
-        api_key = "01Nh2chSGRNsIP8tcdca1yMHBSTYUbRF"
-        print(f"🔑 Using hardcoded API key: {api_key[:15]}...")
-        
-        try:
-            self.client = OpenAI(
-                api_key=api_key,
-                base_url="https://api.mistral.ai/v1"
-            )
-            self.use_mistral = True
-            print("✅ Using Mistral AI with hardcoded key")
-        except Exception as e:
-            print(f"⚠️ Mistral init error: {e}")
-            print(traceback.format_exc())
+        # ✅ MOCK AI - No API key needed!
+        print("✅ Using Mock AI (No API key required!)")
     
     async def generate_response(
         self,
         message: str,
-        conversation_history: List[Dict],
+        conversation_history: List[Dict] = None,
         personality: str = "helpful",
         **kwargs
     ) -> Dict:
-        if self.use_mistral:
-            return await self._generate_with_mistral(message, conversation_history, personality)
+        """Generate a mock AI response - works without any API"""
+        
+        # Some smart responses
+        responses = [
+            f"That's a great question! Let me think about '{message}'...",
+            f"Interesting! I'd say the best approach for '{message}' is to...",
+            f"Thanks for asking about '{message}'. Here's what I think...",
+            f"I understand you're curious about '{message}'. Let me explain...",
+            f"Great topic! Regarding '{message}', I would suggest...",
+            f"That's a really interesting point about '{message}'!",
+            f"I appreciate your question about '{message}'. Here's my take...",
+            f"Let me give you my thoughts on '{message}'...",
+        ]
+        
+        # Random greeting based on time
+        hour = datetime.now().hour
+        if hour < 12:
+            greeting = "Good morning!"
+        elif hour < 17:
+            greeting = "Good afternoon!"
+        else:
+            greeting = "Good evening!"
+        
+        # Pick a random response
+        response_text = random.choice(responses)
+        
+        # Add personality flavor
+        if personality == "helpful":
+            response_text += " I'm here to help!"
+        elif personality == "professional":
+            response_text += " Let me provide a detailed analysis."
+        elif personality == "casual":
+            response_text += " Just my two cents!"
+        elif personality == "creative":
+            response_text += " Here's a creative perspective!"
+        elif personality == "educational":
+            response_text += " Let me explain this clearly."
+        
         return {
-            "success": False,
-            "content": "AI service not configured. Please add a valid API key."
+            "success": True,
+            "content": f"{greeting} {response_text}",
+            "model": "mock-ai"
         }
-    
-    async def _generate_with_mistral(
-        self,
-        message: str,
-        conversation_history: List[Dict],
-        personality: str = "helpful"
-    ) -> Dict:
-        try:
-            system_prompt = self.personalities.get(personality, self.personalities["helpful"])
-            
-            messages = [
-                {"role": "system", "content": system_prompt}
-            ]
-            
-            if conversation_history:
-                for msg in conversation_history[-5:]:
-                    role = "user" if msg.get("role") == "user" else "assistant"
-                    messages.append({
-                        "role": role,
-                        "content": msg.get("content", "")
-                    })
-            
-            messages.append({"role": "user", "content": message})
-            
-            print(f"📤 Sending to Mistral: {message[:50]}...")
-            
-            response = self.client.chat.completions.create(
-                model="mistral-small-latest",
-                messages=messages,
-                temperature=0.7,
-                max_tokens=500
-            )
-            
-            reply = response.choices[0].message.content
-            print(f"📩 Mistral response: {reply[:50]}...")
-            
-            return {
-                "success": True,
-                "content": reply,
-                "model": "mistral-small"
-            }
-            
-        except Exception as e:
-            error_msg = str(e)
-            print(f"❌ Mistral Error: {error_msg}")
-            print(traceback.format_exc())
-            return {
-                "success": False,
-                "content": f"Error: {error_msg}",
-                "error": error_msg
-            }
 
 ai_service = AIService()

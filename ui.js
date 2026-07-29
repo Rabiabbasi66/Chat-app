@@ -243,3 +243,18 @@ class UIManager {
 }
 
 window.UIManager = UIManager;
+
+// Add to UIManager class
+updateUserName(name) {
+    const userNameEl = document.getElementById('userName');
+    if (userNameEl && name) {
+        userNameEl.textContent = name;
+    }
+}
+
+updateAvatar(initial) {
+    const avatar = document.getElementById('userAvatar');
+    if (avatar && initial) {
+        avatar.innerHTML = initial.charAt(0).toUpperCase();
+    }
+}

@@ -6,7 +6,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 AI Chat Application Starting...');
     
-    const API_BASE_URL = localStorage.getItem('api_url') || 'http://localhost:8000';
+   const API_BASE_URL = localStorage.getItem('api_url') || 'https://chat-app-aanf.vercel.app';
 
     // Initialize Managers
     window.wsManager = new WebSocketManager(API_BASE_URL);

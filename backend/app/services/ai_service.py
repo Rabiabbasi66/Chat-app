@@ -1,114 +1,72 @@
-from typing import Optional, List, Dict
-import aiohttp
-import json
-import google.generativeai as genai  # ← OLD SDK (this works)
+import google.generativeai as genai
+from typing import List, Dict, Any
 from ..config import settings
 
 class AIService:
     def __init__(self):
-        self.base_url = "https://api.openai.com/v1"
-        
-        self.personalities = {
-            "helpful": "You are a helpful, friendly assistant who provides clear and accurate information.",
-            "professional": "You are a professional assistant who maintains a formal tone and provides detailed responses.",
-            "casual": "You are a casual, conversational assistant who communicates in a relaxed, friendly manner.",
-            "creative": "You are a creative assistant who thinks outside the box and provides innovative solutions.",
-            "educational": "You are an educational assistant who explains concepts clearly and encourages learning."
-        }
-        
-        # Initialize Gemini using OLD SDK
         self.use_gemini = False
         self.gemini_model = None
         
-        if settings.openai_api_key and settings.openai_api_key.startswith("gen-lang-"):
+        api_key = settings.openai_api_key
+        print(f"🔑 API Key loaded: {api_key[:15] if api_key else 'None'}...")
+        
+        if api_key and api_key.startswith("AIza"):
             try:
-                genai.configure(api_key=settings.openai_api_key)
+                genai.configure(api_key=api_key)
                 self.gemini_model = genai.GenerativeModel("gemini-1.5-flash")
                 self.use_gemini = True
                 print("✅ Using Google Gemini AI")
             except Exception as e:
                 print(f"⚠️ Gemini init error: {e}")
-    
-    @property
-    def api_key(self):
-        return settings.openai_api_key
+        else:
+            print("❌ Invalid or missing API key")
 
     async def generate_response(
         self,
         message: str,
-        conversation_history: List[Dict],
+        conversation_history: List[Dict] = None,
         personality: str = "helpful",
         **kwargs
-    ) -> Dict:
-        if self.use_gemini:
-            return await self._generate_with_gemini(message, conversation_history, personality)
-        return await self._generate_with_openai(message, conversation_history, personality)
-    
-    async def _generate_with_gemini(
-        self,
-        message: str,
-        conversation_history: List[Dict],
-        personality: str = "helpful"
-    ) -> Dict:
+    ) -> Dict[str, Any]:
+        """Generate AI response using Google Gemini"""
+        
+        # ✅ Always return a dictionary
+        if not self.use_gemini:
+            return {
+                "success": False,
+                "content": "AI service not configured",
+                "error": "AI_NOT_CONFIGURED"
+            }
+        
         try:
-            system_prompt = self.personalities.get(personality, self.personalities["helpful"])
+            # Build prompt
+            system_prompt = "You are a helpful AI assistant."
+            if personality == "professional":
+                system_prompt = "You are a professional, formal assistant."
+            elif personality == "casual":
+                system_prompt = "You are a casual, friendly assistant."
+            elif personality == "creative":
+                system_prompt = "You are a creative, imaginative assistant."
+            elif personality == "educational":
+                system_prompt = "You are an educational, clear assistant."
             
-            context = ""
-            if conversation_history:
-                for msg in conversation_history[-5:]:
-                    role = "User" if msg.get("role") == "user" else "Assistant"
-                    context += f"{role}: {msg.get('content', '')}\n"
+            full_prompt = f"{system_prompt}\n\nUser: {message}\nAssistant:"
             
-            full_prompt = f"""{system_prompt}
-
-Previous conversation:
-{context}
-
-User: {message}
-Assistant:"""
-            
+            # Generate response
             response = self.gemini_model.generate_content(full_prompt)
             
             return {
                 "success": True,
                 "content": response.text.strip(),
-                "model": "gemini-1.5-flash",
-                "usage": {}
+                "model": "gemini-1.5-flash"
             }
             
         except Exception as e:
-            error_msg = str(e)
-            if "API key" in error_msg or "key" in error_msg:
-                return {
-                    "success": False,
-                    "content": "❌ Invalid API key. Please check your Google Gemini API key.",
-                    "error": "Invalid API key"
-                }
+            print(f"❌ AI Error: {e}")
             return {
                 "success": False,
-                "content": f"Error generating response: {error_msg}",
-                "error": error_msg
+                "content": f"Error: {str(e)}",
+                "error": str(e)
             }
-    
-    async def _generate_with_openai(
-        self,
-        message: str,
-        conversation_history: List[Dict],
-        personality: str = "helpful"
-    ) -> Dict:
-        # Your existing OpenAI code here (keep as is)
-        pass
-    
-    async def generate_streaming_response(
-        self,
-        message: str,
-        conversation_history: List[Dict],
-        personality: str = "helpful"
-    ):
-        # Your existing streaming code here (keep as is)
-        pass
-    
-    def validate_content(self, content: str) -> bool:
-        return bool(content and content.strip())
 
 ai_service = AIService()

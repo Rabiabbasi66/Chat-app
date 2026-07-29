@@ -1,13 +1,10 @@
 from typing import Optional, List, Dict
-import aiohttp
 import json
-import google.generativeai as genai
+from openai import OpenAI
 from ..config import settings
 
 class AIService:
     def __init__(self):
-        self.base_url = "https://api.openai.com/v1"
-        
         self.personalities = {
             "helpful": "You are a helpful, friendly assistant who provides clear and accurate information.",
             "professional": "You are a professional assistant who maintains a formal tone and provides detailed responses.",
@@ -16,23 +13,20 @@ class AIService:
             "educational": "You are an educational assistant who explains concepts clearly and encourages learning."
         }
         
-        self.use_gemini = False
-        self.gemini_model = None
+        self.use_deepseek = False
+        self.client = None
         
         if settings.openai_api_key:
             try:
-                genai.configure(api_key=settings.openai_api_key)
-                # ✅ Use a model that works
-                self.gemini_model = genai.GenerativeModel("gemini-2.0-flash")
-                self.use_gemini = True
-                print("✅ Using Google Gemini AI (gemini-2.0-flash)")
+                self.client = OpenAI(
+                    api_key=settings.openai_api_key,
+                    base_url="https://api.deepseek.com"
+                )
+                self.use_deepseek = True
+                print("✅ Using DeepSeek AI")
             except Exception as e:
-                print(f"⚠️ Gemini init error: {e}")
+                print(f"⚠️ DeepSeek init error: {e}")
     
-    @property
-    def api_key(self):
-        return settings.openai_api_key
-
     async def generate_response(
         self,
         message: str,
@@ -40,11 +34,14 @@ class AIService:
         personality: str = "helpful",
         **kwargs
     ) -> Dict:
-        if self.use_gemini:
-            return await self._generate_with_gemini(message, conversation_history, personality)
-        return await self._generate_with_openai(message, conversation_history, personality)
+        if self.use_deepseek:
+            return await self._generate_with_deepseek(message, conversation_history, personality)
+        return {
+            "success": False,
+            "content": "AI service not configured. Please add a valid API key."
+        }
     
-    async def _generate_with_gemini(
+    async def _generate_with_deepseek(
         self,
         message: str,
         conversation_history: List[Dict],
@@ -53,56 +50,41 @@ class AIService:
         try:
             system_prompt = self.personalities.get(personality, self.personalities["helpful"])
             
-            # ✅ Limit history to prevent token overflow
-            context = ""
+            messages = [
+                {"role": "system", "content": system_prompt}
+            ]
+            
+            # Add conversation history (last 5 messages)
             if conversation_history:
-                for msg in conversation_history[-3:]:  # Only last 3 messages
-                    role = "User" if msg.get("role") == "user" else "Assistant"
-                    context += f"{role}: {msg.get('content', '')}\n"
+                for msg in conversation_history[-5:]:
+                    role = "user" if msg.get("role") == "user" else "assistant"
+                    messages.append({
+                        "role": role,
+                        "content": msg.get("content", "")
+                    })
             
-            full_prompt = f"""{system_prompt}
-
-Previous conversation:
-{context}
-
-User: {message}
-Assistant:"""
+            messages.append({"role": "user", "content": message})
             
-            response = self.gemini_model.generate_content(full_prompt)
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=500
+            )
             
             return {
                 "success": True,
-                "content": response.text.strip(),
-                "model": "gemini-2.0-flash",
-                "usage": {}
+                "content": response.choices[0].message.content,
+                "model": "deepseek-chat"
             }
             
         except Exception as e:
             error_msg = str(e)
-            print(f"❌ Gemini Error: {error_msg}")
+            print(f"❌ DeepSeek Error: {error_msg}")
             return {
                 "success": False,
-                "content": "I'm having trouble with that. Can you try again?",
+                "content": "I'm having trouble right now. Please try again in a moment.",
                 "error": error_msg
             }
-    
-    async def _generate_with_openai(
-        self,
-        message: str,
-        conversation_history: List[Dict],
-        personality: str = "helpful"
-    ) -> Dict:
-        return {"success": False, "content": "OpenAI not configured"}
-    
-    async def generate_streaming_response(
-        self,
-        message: str,
-        conversation_history: List[Dict],
-        personality: str = "helpful"
-    ):
-        yield {"type": "error", "content": "Streaming not configured"}
-    
-    def validate_content(self, content: str) -> bool:
-        return bool(content and content.strip())
 
 ai_service = AIService()

@@ -20,14 +20,13 @@ class AIService:
         self.use_gemini = False
         self.gemini_model = None
         
-        # ✅ FIXED: Check for Google Gemini key (starts with "AIza")
         if settings.openai_api_key and settings.openai_api_key.startswith("AIza"):
             try:
                 genai.configure(api_key=settings.openai_api_key)
                 # ✅ FIXED: Use available model
-                self.gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+                self.gemini_model = genai.GenerativeModel("gemini-2.0-flash-exp")
                 self.use_gemini = True
-                print("✅ Using Google Gemini AI")
+                print("✅ Using Google Gemini AI (gemini-2.0-flash-exp)")
             except Exception as e:
                 print(f"⚠️ Gemini init error: {e}")
     
@@ -74,7 +73,7 @@ Assistant:"""
             return {
                 "success": True,
                 "content": response.text.strip(),
-                "model": "gemini-1.5-flash",
+                "model": "gemini-2.0-flash-exp",
                 "usage": {}
             }
             

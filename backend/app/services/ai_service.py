@@ -16,17 +16,16 @@ class AIService:
             "educational": "You are an educational assistant who explains concepts clearly and encourages learning."
         }
         
-        # Initialize Gemini
         self.use_gemini = False
         self.gemini_model = None
         
         if settings.openai_api_key:
             try:
                 genai.configure(api_key=settings.openai_api_key)
-                # ✅ FIXED: Using a model that exists
-                self.gemini_model = genai.GenerativeModel("gemini-3.5-flash")
+                # ✅ Use a model that works
+                self.gemini_model = genai.GenerativeModel("gemini-2.0-flash")
                 self.use_gemini = True
-                print("✅ Using Google Gemini AI (gemini-3.5-flash)")
+                print("✅ Using Google Gemini AI (gemini-2.0-flash)")
             except Exception as e:
                 print(f"⚠️ Gemini init error: {e}")
     
@@ -54,9 +53,10 @@ class AIService:
         try:
             system_prompt = self.personalities.get(personality, self.personalities["helpful"])
             
+            # ✅ Limit history to prevent token overflow
             context = ""
             if conversation_history:
-                for msg in conversation_history[-5:]:
+                for msg in conversation_history[-3:]:  # Only last 3 messages
                     role = "User" if msg.get("role") == "user" else "Assistant"
                     context += f"{role}: {msg.get('content', '')}\n"
             
@@ -73,21 +73,16 @@ Assistant:"""
             return {
                 "success": True,
                 "content": response.text.strip(),
-                "model": "gemini-3.5-flash",
+                "model": "gemini-2.0-flash",
                 "usage": {}
             }
             
         except Exception as e:
             error_msg = str(e)
-            if "API key" in error_msg or "key" in error_msg:
-                return {
-                    "success": False,
-                    "content": "❌ Invalid API key. Please check your Google Gemini API key.",
-                    "error": "Invalid API key"
-                }
+            print(f"❌ Gemini Error: {error_msg}")
             return {
                 "success": False,
-                "content": f"Error generating response: {error_msg}",
+                "content": "I'm having trouble with that. Can you try again?",
                 "error": error_msg
             }
     
@@ -97,7 +92,6 @@ Assistant:"""
         conversation_history: List[Dict],
         personality: str = "helpful"
     ) -> Dict:
-        # Your existing OpenAI code here
         return {"success": False, "content": "OpenAI not configured"}
     
     async def generate_streaming_response(
@@ -106,7 +100,6 @@ Assistant:"""
         conversation_history: List[Dict],
         personality: str = "helpful"
     ):
-        # Your existing streaming code here
         yield {"type": "error", "content": "Streaming not configured"}
     
     def validate_content(self, content: str) -> bool:

@@ -12,7 +12,7 @@ from pydantic import BaseModel, EmailStr # Added for Login request
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 # --- FIX 1: Set argon2 as the primary scheme ---
-pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Helper for login request body
 class LoginRequest(BaseModel):

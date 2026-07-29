@@ -12,7 +12,6 @@ class UIManager {
     }
 
     setupEventListeners() {
-        // Toggle sidebar
         const toggleSidebar = document.getElementById('toggleSidebar');
         if (toggleSidebar) {
             toggleSidebar.addEventListener('click', () => this.toggleSidebar());
@@ -23,7 +22,6 @@ class UIManager {
             closeSidebar.addEventListener('click', () => this.closeSidebar());
         }
 
-        // New Chat Button
         const newChatBtn = document.getElementById('newChatBtn');
         if (newChatBtn) {
             newChatBtn.addEventListener('click', () => {
@@ -32,7 +30,6 @@ class UIManager {
             });
         }
 
-        // Refresh Chats
         const refreshChats = document.getElementById('refreshChats');
         if (refreshChats) {
             refreshChats.addEventListener('click', () => {
@@ -41,13 +38,11 @@ class UIManager {
             });
         }
 
-        // Theme Toggle (if exists)
         const themeToggle = document.getElementById('themeToggle');
         if (themeToggle) {
             themeToggle.addEventListener('click', () => this.toggleTheme());
         }
 
-        // Personality Button (if exists)
         const personalityBtn = document.getElementById('personalityBtn');
         if (personalityBtn) {
             personalityBtn.addEventListener('click', () => this.openModal('personalityModal'));
@@ -58,24 +53,6 @@ class UIManager {
             closePersonalityModal.addEventListener('click', () => this.closeModal('personalityModal'));
         }
 
-        // Settings Button (if exists)
-        const settingsBtn = document.getElementById('settingsBtn');
-        if (settingsBtn) {
-            settingsBtn.addEventListener('click', () => this.openModal('settingsModal'));
-        }
-
-        const closeSettingsModal = document.getElementById('closeSettingsModal');
-        if (closeSettingsModal) {
-            closeSettingsModal.addEventListener('click', () => this.closeModal('settingsModal'));
-        }
-
-        // More Options (if exists)
-        const moreOptions = document.getElementById('moreOptions');
-        if (moreOptions) {
-            moreOptions.addEventListener('click', (e) => this.showOptionsMenu(e));
-        }
-
-        // Personality Cards
         document.querySelectorAll('.personality-card').forEach(card => {
             card.addEventListener('click', () => {
                 const personality = card.dataset.personality;
@@ -84,38 +61,6 @@ class UIManager {
             });
         });
 
-        // Theme Select (if exists)
-        const themeSelect = document.getElementById('themeSelect');
-        if (themeSelect) {
-            themeSelect.addEventListener('change', (e) => {
-                this.theme = e.target.value;
-                localStorage.setItem('theme', this.theme);
-                this.applyTheme();
-            });
-        }
-
-        // Font Size Select (if exists)
-        const fontSizeSelect = document.getElementById('fontSizeSelect');
-        if (fontSizeSelect) {
-            fontSizeSelect.addEventListener('change', (e) => {
-                const size = e.target.value;
-                document.documentElement.style.fontSize = size === 'small' ? '14px' : size === 'large' ? '18px' : '16px';
-                localStorage.setItem('font_size', size);
-            });
-        }
-
-        // Clear History Button (if exists)
-        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
-        if (clearHistoryBtn) {
-            clearHistoryBtn.addEventListener('click', () => {
-                if (confirm('Are you sure you want to clear all chat history?')) {
-                    if (window.chatManager) window.chatManager.clearChatHistory();
-                    this.closeModal('settingsModal');
-                }
-            });
-        }
-
-        // Message Input
         const messageInput = document.getElementById('messageInput');
         if (messageInput) {
             messageInput.addEventListener('input', () => {
@@ -132,13 +77,11 @@ class UIManager {
             });
         }
 
-        // Send Button
         const sendBtn = document.getElementById('sendBtn');
         if (sendBtn) {
             sendBtn.addEventListener('click', () => this.sendMessage());
         }
 
-        // Modals - Close on overlay click
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) this.closeModal(modal.id);
@@ -174,8 +117,6 @@ class UIManager {
 
     applyTheme() {
         document.documentElement.setAttribute('data-theme', this.theme);
-        const select = document.getElementById('themeSelect');
-        if (select) select.value = this.theme;
     }
 
     openModal(modalId) {
@@ -192,10 +133,6 @@ class UIManager {
             modal.classList.remove('active');
             document.body.style.overflow = '';
         }
-    }
-
-    showOptionsMenu() {
-        this.openModal('settingsModal');
     }
 
     sendMessage() {
@@ -230,31 +167,26 @@ class UIManager {
     }
 
     loadSettings() {
-        const fontSize = localStorage.getItem('font_size') || 'medium';
-        const fontSizeSelect = document.getElementById('fontSizeSelect');
-        if (fontSizeSelect) {
-            fontSizeSelect.value = fontSize;
-            document.documentElement.style.fontSize = fontSize === 'small' ? '14px' : fontSize === 'large' ? '18px' : '16px';
-        }
-        
         const personality = localStorage.getItem('ai_personality') || 'helpful';
         if (window.chatManager) window.chatManager.currentPersonality = personality;
+    }
+
+    // ✅ THESE METHODS ARE NOW INSIDE THE CLASS
+    updateUserName(name) {
+        const userNameEl = document.getElementById('userName');
+        if (userNameEl && name) {
+            userNameEl.textContent = name;
+        }
+    }
+
+    updateAvatar(initial) {
+        const avatar = document.getElementById('userAvatar');
+        if (avatar && initial) {
+            avatar.innerHTML = initial.charAt(0).toUpperCase();
+            avatar.style.background = 'linear-gradient(135deg, #6c63ff, #8a82ff)';
+            avatar.style.color = 'white';
+        }
     }
 }
 
 window.UIManager = UIManager;
-
-// Add to UIManager class
-updateUserName(name) {
-    const userNameEl = document.getElementById('userName');
-    if (userNameEl && name) {
-        userNameEl.textContent = name;
-    }
-}
-
-updateAvatar(initial) {
-    const avatar = document.getElementById('userAvatar');
-    if (avatar && initial) {
-        avatar.innerHTML = initial.charAt(0).toUpperCase();
-    }
-}

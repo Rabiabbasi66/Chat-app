@@ -16,7 +16,6 @@ class ChatManager {
     }
 
     setupEventListeners() {
-        // Handle incoming messages from WebSocket
         this.wsManager.on('message', (data) => this.handleIncomingMessage(data));
         this.wsManager.on('typing', (data) => this.handleTypingIndicator(data));
         this.wsManager.on('chat:created', (data) => this.handleChatCreated(data));
@@ -98,10 +97,25 @@ class ChatManager {
     }
 
     handleIncomingMessage(data) {
-        if (data.chat_id !== this.currentChatId) return;
+        console.log('📩 handleIncomingMessage called with:', data);
+        
+        // ✅ If there's a chat_id, check if it matches current chat
+        if (data.chat_id && data.chat_id !== this.currentChatId) {
+            console.log('⚠️ Message chat_id does not match current chat, skipping UI update');
+            return;
+        }
+        
+        // ✅ Add message to UI
         this.addMessageToUI(data);
-        if (!this.messages.has(data.chat_id)) this.messages.set(data.chat_id, []);
-        this.messages.get(data.chat_id).push(data);
+        
+        // ✅ Store message in cache
+        const chatId = data.chat_id || this.currentChatId;
+        if (chatId) {
+            if (!this.messages.has(chatId)) {
+                this.messages.set(chatId, []);
+            }
+            this.messages.get(chatId).push(data);
+        }
     }
 
     handleTypingIndicator(data) {
@@ -113,6 +127,7 @@ class ChatManager {
     }
 
     handleChatCreated(data) {
+        console.log('📩 Chat created:', data);
         const newChat = { 
             id: data.chat_id || data.id, 
             title: data.title || 'New Chat' 
@@ -128,6 +143,7 @@ class ChatManager {
     }
 
     handleChatList(data) {
+        console.log('📩 Chat list received:', data);
         this.chats = data.chats || [];
         this.renderChatList();
         if (this.chats.length > 0 && !this.currentChatId) {
@@ -136,12 +152,17 @@ class ChatManager {
     }
 
     handleMessagesLoaded(data) {
+        console.log('📩 Messages loaded:', data);
         if (data.chat_id !== this.currentChatId) return;
+        
         this.messages.set(data.chat_id, data.messages || []);
         const container = document.getElementById('messagesContainer');
         if (container) {
             container.innerHTML = '';
-            (data.messages || []).forEach(msg => this.addMessageToUI(msg, false));
+            (data.messages || []).forEach(msg => {
+                console.log('📝 Rendering message:', msg);
+                this.addMessageToUI(msg, false);
+            });
             this.scrollToBottom();
         }
     }
@@ -151,15 +172,33 @@ class ChatManager {
     }
 
     addMessageToUI(data, animate = true) {
+        console.log('📝 addMessageToUI called with:', data);
+        
         const container = document.getElementById('messagesContainer');
-        if (!container || !data) return;
+        if (!container) {
+            console.error('❌ messagesContainer not found!');
+            return;
+        }
+        if (!data) {
+            console.error('❌ No data provided to addMessageToUI');
+            return;
+        }
 
-        const isUser = data.sender_type === 'user';
+        // ✅ Handle different message formats
+        const content = data.content || data.message || '';
+        const senderType = data.sender_type || data.senderType || 'ai';
+        const isUser = senderType === 'user';
+        const chatId = data.chat_id || data.chatId || this.currentChatId;
+        const timestamp = data.timestamp || data.created_at || new Date().toISOString();
+        const messageId = data.message_id || data.id || Date.now().toString();
+
+        console.log(`📝 Adding ${isUser ? 'user' : 'AI'} message: "${content}"`);
+
         const messageEl = document.createElement('div');
         messageEl.className = `message ${isUser ? 'user-message' : 'ai-message'} ${animate ? 'fade-in' : ''}`;
+        messageEl.id = `msg-${messageId}`;
         
-        const time = new Date(data.timestamp).toLocaleTimeString();
-        const content = data.content || '';
+        const time = new Date(timestamp).toLocaleTimeString();
 
         messageEl.innerHTML = `
             <div class="message-avatar">
@@ -176,6 +215,7 @@ class ChatManager {
         
         container.appendChild(messageEl);
         this.scrollToBottom();
+        console.log(`✅ Message added to UI: "${content}"`);
     }
 
     renderChatList() {

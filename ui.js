@@ -5,34 +5,77 @@
 class UIManager {
     constructor() {
         this.sidebar = document.getElementById('sidebar');
-        this.theme = localStorage.getItem('theme') || 'light';
+        this.theme = localStorage.getItem('theme') || 'dark';
         this.applyTheme();
         this.setupEventListeners();
-        // Delay setting loading to ensure ChatManager instance exists
         setTimeout(() => this.loadSettings(), 100);
     }
 
     setupEventListeners() {
-        document.getElementById('toggleSidebar').addEventListener('click', () => this.toggleSidebar());
-        document.getElementById('closeSidebar').addEventListener('click', () => this.closeSidebar());
-        
-        document.getElementById('newChatBtn').addEventListener('click', () => {
-            if (window.chatManager) window.chatManager.createNewChat();
-            if (window.innerWidth <= 640) this.closeSidebar();
-        });
-        
-        document.getElementById('refreshChats').addEventListener('click', () => {
-            if (window.chatManager) window.chatManager.loadChatList();
-            if (window.showToast) showToast('Chat list refreshed', 'info');
-        });
-        
-        document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
-        document.getElementById('personalityBtn').addEventListener('click', () => this.openModal('personalityModal'));
-        document.getElementById('closePersonalityModal').addEventListener('click', () => this.closeModal('personalityModal'));
-        document.getElementById('settingsBtn').addEventListener('click', () => this.openModal('settingsModal'));
-        document.getElementById('closeSettingsModal').addEventListener('click', () => this.closeModal('settingsModal'));
-        document.getElementById('moreOptions').addEventListener('click', (e) => this.showOptionsMenu(e));
-        
+        // Toggle sidebar
+        const toggleSidebar = document.getElementById('toggleSidebar');
+        if (toggleSidebar) {
+            toggleSidebar.addEventListener('click', () => this.toggleSidebar());
+        }
+
+        const closeSidebar = document.getElementById('closeSidebar');
+        if (closeSidebar) {
+            closeSidebar.addEventListener('click', () => this.closeSidebar());
+        }
+
+        // New Chat Button
+        const newChatBtn = document.getElementById('newChatBtn');
+        if (newChatBtn) {
+            newChatBtn.addEventListener('click', () => {
+                if (window.chatManager) window.chatManager.createNewChat();
+                if (window.innerWidth <= 640) this.closeSidebar();
+            });
+        }
+
+        // Refresh Chats
+        const refreshChats = document.getElementById('refreshChats');
+        if (refreshChats) {
+            refreshChats.addEventListener('click', () => {
+                if (window.chatManager) window.chatManager.loadChatList();
+                if (window.showToast) showToast('Chat list refreshed', 'info');
+            });
+        }
+
+        // Theme Toggle (if exists)
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => this.toggleTheme());
+        }
+
+        // Personality Button (if exists)
+        const personalityBtn = document.getElementById('personalityBtn');
+        if (personalityBtn) {
+            personalityBtn.addEventListener('click', () => this.openModal('personalityModal'));
+        }
+
+        const closePersonalityModal = document.getElementById('closePersonalityModal');
+        if (closePersonalityModal) {
+            closePersonalityModal.addEventListener('click', () => this.closeModal('personalityModal'));
+        }
+
+        // Settings Button (if exists)
+        const settingsBtn = document.getElementById('settingsBtn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => this.openModal('settingsModal'));
+        }
+
+        const closeSettingsModal = document.getElementById('closeSettingsModal');
+        if (closeSettingsModal) {
+            closeSettingsModal.addEventListener('click', () => this.closeModal('settingsModal'));
+        }
+
+        // More Options (if exists)
+        const moreOptions = document.getElementById('moreOptions');
+        if (moreOptions) {
+            moreOptions.addEventListener('click', (e) => this.showOptionsMenu(e));
+        }
+
+        // Personality Cards
         document.querySelectorAll('.personality-card').forEach(card => {
             card.addEventListener('click', () => {
                 const personality = card.dataset.personality;
@@ -40,48 +83,71 @@ class UIManager {
                 this.closeModal('personalityModal');
             });
         });
-        
-        document.getElementById('themeSelect').addEventListener('change', (e) => {
-            this.theme = e.target.value;
-            localStorage.setItem('theme', this.theme);
-            this.applyTheme();
-        });
-        
-        document.getElementById('fontSizeSelect').addEventListener('change', (e) => {
-            const size = e.target.value;
-            document.documentElement.style.fontSize = size === 'small' ? '14px' : size === 'large' ? '18px' : '16px';
-            localStorage.setItem('font_size', size);
-        });
 
-        document.getElementById('clearHistoryBtn').addEventListener('click', () => {
-            if (confirm('Are you sure you want to clear all chat history?')) {
-                if (window.chatManager) window.chatManager.clearChatHistory();
-                this.closeModal('settingsModal');
-            }
-        });
-        
+        // Theme Select (if exists)
+        const themeSelect = document.getElementById('themeSelect');
+        if (themeSelect) {
+            themeSelect.addEventListener('change', (e) => {
+                this.theme = e.target.value;
+                localStorage.setItem('theme', this.theme);
+                this.applyTheme();
+            });
+        }
+
+        // Font Size Select (if exists)
+        const fontSizeSelect = document.getElementById('fontSizeSelect');
+        if (fontSizeSelect) {
+            fontSizeSelect.addEventListener('change', (e) => {
+                const size = e.target.value;
+                document.documentElement.style.fontSize = size === 'small' ? '14px' : size === 'large' ? '18px' : '16px';
+                localStorage.setItem('font_size', size);
+            });
+        }
+
+        // Clear History Button (if exists)
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        if (clearHistoryBtn) {
+            clearHistoryBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear all chat history?')) {
+                    if (window.chatManager) window.chatManager.clearChatHistory();
+                    this.closeModal('settingsModal');
+                }
+            });
+        }
+
+        // Message Input
         const messageInput = document.getElementById('messageInput');
-        messageInput.addEventListener('input', () => {
-            if (window.updateCharCount) window.updateCharCount();
-            this.autoResize(messageInput);
-            this.handleTyping();
-        });
-        
-        messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.sendMessage();
-            }
-        });
-        
-        document.getElementById('sendBtn').addEventListener('click', () => this.sendMessage());
+        if (messageInput) {
+            messageInput.addEventListener('input', () => {
+                if (window.updateCharCount) window.updateCharCount();
+                this.autoResize(messageInput);
+                this.handleTyping();
+            });
 
+            messageInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
+        }
+
+        // Send Button
+        const sendBtn = document.getElementById('sendBtn');
+        if (sendBtn) {
+            sendBtn.addEventListener('click', () => this.sendMessage());
+        }
+
+        // Modals - Close on overlay click
         document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('click', (e) => { if (e.target === modal) this.closeModal(modal.id); });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) this.closeModal(modal.id);
+            });
         });
     }
 
     toggleSidebar() {
+        if (!this.sidebar) return;
         this.sidebar.classList.toggle('active');
         let overlay = document.querySelector('.sidebar-overlay');
         if (!overlay) {
@@ -94,12 +160,11 @@ class UIManager {
     }
 
     closeSidebar() {
-        this.sidebar.classList.remove('active');
+        if (this.sidebar) this.sidebar.classList.remove('active');
         document.querySelector('.sidebar-overlay')?.classList.remove('active');
     }
 
     toggleTheme() {
-        const themes = ['light', 'dark'];
         this.theme = this.theme === 'light' ? 'dark' : 'light';
         localStorage.setItem('theme', this.theme);
         this.applyTheme();
@@ -114,24 +179,38 @@ class UIManager {
     }
 
     openModal(modalId) {
-        document.getElementById(modalId).classList.add('active');
-        document.body.style.overflow = 'hidden';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
     }
 
     closeModal(modalId) {
-        document.getElementById(modalId).classList.remove('active');
-        document.body.style.overflow = '';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
     }
 
-    showOptionsMenu() { this.openModal('settingsModal'); }
+    showOptionsMenu() {
+        this.openModal('settingsModal');
+    }
 
     sendMessage() {
         const input = document.getElementById('messageInput');
+        if (!input) return;
         const content = input.value.trim();
-        if (content && window.chatManager) window.chatManager.sendMessage(content);
+        if (content && window.chatManager) {
+            window.chatManager.sendMessage(content);
+            input.value = '';
+            if (window.updateCharCount) window.updateCharCount();
+        }
     }
 
     autoResize(textarea) {
+        if (!textarea) return;
         textarea.style.height = 'auto';
         textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
     }
@@ -152,8 +231,11 @@ class UIManager {
 
     loadSettings() {
         const fontSize = localStorage.getItem('font_size') || 'medium';
-        document.getElementById('fontSizeSelect').value = fontSize;
-        document.documentElement.style.fontSize = fontSize === 'small' ? '14px' : fontSize === 'large' ? '18px' : '16px';
+        const fontSizeSelect = document.getElementById('fontSizeSelect');
+        if (fontSizeSelect) {
+            fontSizeSelect.value = fontSize;
+            document.documentElement.style.fontSize = fontSize === 'small' ? '14px' : fontSize === 'large' ? '18px' : '16px';
+        }
         
         const personality = localStorage.getItem('ai_personality') || 'helpful';
         if (window.chatManager) window.chatManager.currentPersonality = personality;

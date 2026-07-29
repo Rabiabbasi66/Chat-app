@@ -37,11 +37,9 @@ class ConnectionManager:
             del self.user_connections[connection_id]
 
     async def send_personal_message(self, message: dict, user_id: str):
-        """Fixed: Sends a flattened message to match frontend expectations"""
         if user_id in self.active_connections:
             for conn in self.active_connections[user_id]:
                 try:
-                    # Flatten the 'data' key so frontend can read data.content directly
                     msg_type = message.get("type")
                     payload = message.get("data", {})
                     payload["type"] = msg_type 
@@ -62,12 +60,10 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# Ensure this matches the frontend call seen in terminal: /ws/chat/user_...
 @router.websocket("/ws/chat/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
     connection_id = await manager.connect(websocket, user_id)
     
-    # Initial status message
     await manager.send_personal_message({
         "type": "connected",
         "data": {"message": "Welcome to AI Chat!"}
@@ -88,7 +84,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     if not content or not chat_id:
                         continue
                     
-                    # 1. Save and Broadcast User Message
+                    # Save and Broadcast User Message
                     user_message = await message_service.create_message(
                         chat_id=chat_id, user_id=user_id, content=content, sender_type="user"
                     )
@@ -104,13 +100,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                         }
                     }, user_id)
                     
-                    # 2. Typing Indicator (Match frontend: handleTypingIndicator checks .is_typing)
+                    # Typing Indicator
                     await manager.send_personal_message({
                         "type": "typing",
                         "data": {"is_typing": True, "sender": "ai", "chat_id": chat_id}
                     }, user_id)
                     
-                    # 3. AI Logic
+                    # AI Logic
                     messages = await message_service.get_messages(chat_id, limit=10)
                     history = [
                         {"role": "user" if m["sender_type"] == "user" else "assistant", "content": m["content"]}
@@ -121,7 +117,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                         message=content, conversation_history=history, personality=personality
                     )
                     
-                    # 4. Stop Typing
+                    # Stop Typing
                     await manager.send_personal_message({
                         "type": "typing",
                         "data": {"is_typing": False, "sender": "ai", "chat_id": chat_id}
@@ -141,6 +137,51 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                                 "sender_type": "ai",
                                 "chat_id": chat_id,
                                 "timestamp": ai_msg["created_at"]
+                            }
+                        }, user_id)
+                
+                # ✅ NEW: Handle chat:new
+                elif message_type == "chat:new":
+                    title = message_data.get("title", "New Chat")
+                    
+                    chat_session = await message_service.create_chat_session(user_id, title)
+                    
+                    await manager.send_personal_message({
+                        "type": "chat:created",
+                        "data": {
+                            "chat_id": chat_session["id"],
+                            "title": chat_session["title"],
+                            "user_id": chat_session["user_id"],
+                            "created_at": chat_session["created_at"].isoformat() if chat_session.get("created_at") else None
+                        }
+                    }, user_id)
+                    
+                    chats = await message_service.get_chat_sessions(user_id)
+                    await manager.send_personal_message({
+                        "type": "chat:list",
+                        "data": {"chats": chats}
+                    }, user_id)
+                
+                # ✅ NEW: Handle chat:list
+                elif message_type == "chat:list":
+                    chats = await message_service.get_chat_sessions(user_id)
+                    await manager.send_personal_message({
+                        "type": "chat:list",
+                        "data": {"chats": chats}
+                    }, user_id)
+                
+                # ✅ NEW: Handle chat:load
+                elif message_type == "chat:load":
+                    chat_id = message_data.get("chat_id")
+                    limit = message_data.get("limit", 50)
+                    
+                    if chat_id:
+                        messages = await message_service.get_messages(chat_id, limit=limit)
+                        await manager.send_personal_message({
+                            "type": "messages_loaded",
+                            "data": {
+                                "chat_id": chat_id,
+                                "messages": messages
                             }
                         }, user_id)
 
